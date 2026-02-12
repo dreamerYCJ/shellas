@@ -1,0 +1,16 @@
+project:
+  name: "ShellAgent"
+  version: "0.1.0"
+
+rag:
+  chroma_db_path: "./data/chroma_db"
+  tldr_parsed_path: "./data/tldr_parsed.json"
+  top_k: 5
+
+context:
+  max_files_in_cwd: 50
+  max_process_lines: 20
+
+execution:
+  command_timeout_seconds: 30
+  max_correction_rounds: 3

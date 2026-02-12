@@ -1,0 +1,46 @@
+risk_levels:
+  high:
+    action: "block"
+    patterns:
+      - 'rm\s+-rf\s+/[^.]'
+      - 'mkfs\.'
+      - 'dd\s+if=.*of=/dev/'
+      - ':\(\)\{.*\|.*&'
+      - 'chmod\s+-R\s+777\s+/'
+      - '>\s*/dev/sd'
+      - 'wget.*\|\s*sh'
+      - 'curl.*\|\s*bash'
+  medium:
+    action: "confirm"
+    patterns:
+      - 'rm\s+'
+      - 'sudo\s+'
+      - 'kill\s+'
+      - 'systemctl\s+(stop|restart|disable)'
+      - 'iptables'
+      - 'crontab'
+      - 'chmod|chown'
+      - 'mv\s+.*\s+/'
+  low:
+    action: "auto_execute"
+    patterns:
+      - '^(ls|cat|head|tail|grep|find|df|du|ps|top|who|date|uname|echo|pwd)'
+      - '^(wc|sort|uniq|awk|file|stat|which|whereis|hostname)'
+      - '^(ip\s+a|ss|ping|traceroute|dig|nslookup|free|uptime|env)'
+
+file_access:
+  blocked_paths:
+    - "/etc/shadow"
+    - "/etc/gshadow"
+    - "/.ssh/id_rsa"
+    - "/.ssh/id_ed25519"
+    - "/.env"
+    - "/credentials"
+
+error_strategy:
+  syntax_error:    { action: "auto_retry",  max_retries: 2 }
+  not_found:       { action: "auto_retry",  max_retries: 1 }
+  permission_denied: { action: "suggest_fix", max_retries: 0 }
+  resource_error:  { action: "suggest_fix", max_retries: 0 }
+  timeout:         { action: "auto_retry",  max_retries: 1 }
+  unknown:         { action: "ask_user",    max_retries: 0 }
