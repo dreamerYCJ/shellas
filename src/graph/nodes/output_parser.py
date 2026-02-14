@@ -4,21 +4,43 @@ from ...safety.guard import classify_risk
 
 
 def parse_output(state: AgentState) -> AgentState:
-    """解析执行结果，推进current_step"""
     results = state.get("execution_results", [])
     last = results[-1] if results else {}
+    exit_code = last.get("exit_code", 0)
+    command = last.get("command", "")
+    stdout = last.get("stdout", "")
+    stderr = last.get("stderr", "")
 
-    if last.get("exit_code", 0) == 0:
-        # 成功，推进到下一步
+    # ---- 核心修复：判断是否是"正常的无结果" ----
+    is_normal_empty = False
+
+    # grep/egrep/fgrep 返回1 = 没匹配到，不是错误
+    if exit_code == 1 and not stderr.strip():
+        grep_cmds = ["grep", "egrep", "fgrep", "awk", "which", "command -v", "type"]
+        if any(g in command for g in grep_cmds):
+            is_normal_empty = True
+
+    # diff 返回1 = 有差异，也是正常结果
+    if exit_code == 1 and "diff" in command:
+        is_normal_empty = True
+
+    if exit_code == 0 or is_normal_empty:
+        # 成功或正常无结果，推进下一步
         next_step = state["current_step"] + 1
-        # 设置下一步的风险等级
         risk = "low"
         if next_step < len(state["execution_plan"]):
+            from ...safety.guard import classify_risk
             risk = classify_risk(state["execution_plan"][next_step]["command"])
+
+        # 如果是grep无结果，给stdout补一个说明
+        if is_normal_empty and not stdout.strip():
+            new_results = list(results)
+            new_results[-1] = {**last, "stdout": "(无匹配结果)", "exit_code": 0}
+            return {**state, "execution_results": new_results, "current_step": next_step, "risk_level": risk}
+
         return {**state, "current_step": next_step, "risk_level": risk}
     else:
-        # 失败
-        return {**state, "error": last.get("stderr", "Unknown error")}
+        return {**state, "error": stderr or f"exit_code={exit_code}"}
 
 
 def format_response(state: AgentState) -> AgentState:

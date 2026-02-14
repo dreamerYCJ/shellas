@@ -29,8 +29,28 @@ class ContextCollector:
             if ctx.startswith("file_content:"):
                 result[ctx] = self._safe_read_file(ctx.split(":", 1)[1])
             elif ctx in self.COLLECTORS:
-                method = getattr(self, self.COLLECTORS[ctx])
-                result[ctx] = method()
+                result[ctx] = getattr(self, self.COLLECTORS[ctx])()
+
+        # installed_tools特殊处理：prompt里只放常用工具摘要
+        if "installed_tools" in result:
+            full_list = result["installed_tools"]
+            # 保存完整列表供RAG过滤用
+            result["_all_tools"] = set(full_list)
+            # prompt里只展示运维相关的工具（从完整列表里过滤）
+            RELEVANT_TOOLS = {
+                "nvidia-smi", "rocm-smi", "docker", "podman", "kubectl",
+                "git", "python3", "node", "java", "go", "gcc", "make",
+                "nginx", "mysql", "psql", "redis-cli", "mongosh",
+                "curl", "wget", "jq", "htop", "iotop", "iftop",
+                "nmap", "tcpdump", "strace", "ltrace",
+                "apt", "dnf", "yum", "pacman", "snap", "pip",
+                "systemctl", "journalctl", "lsof", "ss", "ip",
+                "tar", "gzip", "zip", "rsync", "scp",
+                "tmux", "screen", "crontab",
+            }
+            result["installed_tools"] = sorted(
+                t for t in full_list if t in RELEVANT_TOOLS
+            )
         return result
 
     # ---- 各维度采集 ----
@@ -87,14 +107,27 @@ class ContextCollector:
     def _collect_tools(self):
         if self._tools_cache:
             return self._tools_cache
-        tools_to_check = [
-            "git", "docker", "python3", "node", "java", "go",
-            "curl", "wget", "vim", "nano", "nginx", "mysql",
-            "psql", "redis-cli", "mongosh", "ffmpeg", "jq",
-        ]
-        self._tools_cache = [t for t in tools_to_check if shutil.which(t)]
-        return self._tools_cache
 
+        # 动态扫描PATH下所有可执行文件
+        found = set()
+        path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+        for d in path_dirs:
+            try:
+                for f in os.listdir(d):
+                    full = os.path.join(d, f)
+                    if os.access(full, os.X_OK) and os.path.isfile(full):
+                        found.add(f)
+            except (PermissionError, FileNotFoundError):
+                continue
+
+        self._tools_cache = sorted(found)
+        return self._tools_cache
+    
+    def has_tool(self, name: str) -> bool:
+        """检查某个工具是否已安装"""
+        tools = self._collect_tools()
+        return name in tools
+    
     def _collect_services(self):
         r = subprocess.run(
             ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager", "-q"],
@@ -105,9 +138,20 @@ class ContextCollector:
         return "采集失败（可能不是systemd系统）"
 
     def _collect_user(self):
+        has_sudo = False
+        try:
+            r = subprocess.run(
+                ["sudo", "-n", "true"],
+                capture_output=True, timeout=3,
+            )
+            has_sudo = (r.returncode == 0)
+        except Exception:
+            pass
+
         return {
             "user": os.environ.get("USER", "unknown"),
             "is_root": os.geteuid() == 0,
+            "has_sudo": has_sudo,
             "home": os.path.expanduser("~"),
             "shell": os.environ.get("SHELL", "unknown"),
         }

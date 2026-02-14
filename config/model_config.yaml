@@ -2,7 +2,7 @@ model:
   name: "./weights/Qwen/Qwen2.5-Coder-14B-Instruct-AWQ"
   base_url: "http://localhost:8000/v1"
   api_key: "not-needed"
-  max_tokens: 2048
+  max_tokens: 1024
   temperature: 0.1
 
 vllm:

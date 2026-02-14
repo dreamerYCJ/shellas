@@ -1,5 +1,5 @@
-"""LangGraph状态定义"""
-from typing import TypedDict
+"""LangGraph状态定义 — 两阶段RAG版本"""
+from typing import TypedDict, Any
 
 
 class AgentState(TypedDict):
@@ -10,7 +10,11 @@ class AgentState(TypedDict):
     # 环境上下文
     required_contexts: list[str]
     context: dict
-    retrieved_docs: str
+    
+    # RAG相关（两阶段设计）
+    retrieved_docs: str           # 格式化后的RAG文档
+    target_command: str | None    # 用户明确指定的命令（如果有）
+    query_analysis: dict | None   # 查询复杂度分析结果
 
     # 执行计划
     execution_plan: list[dict]
