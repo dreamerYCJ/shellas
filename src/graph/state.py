@@ -10,7 +10,7 @@ class AgentState(TypedDict):
     # 环境上下文
     required_contexts: list[str]
     context: dict
-    
+
     # RAG相关（两阶段设计）
     retrieved_docs: str           # 格式化后的RAG文档
     target_command: str | None    # 用户明确指定的命令（如果有）

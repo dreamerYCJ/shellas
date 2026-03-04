@@ -1,10 +1,18 @@
 """终端UI组件"""
+from contextlib import contextmanager
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt, Confirm
 
 console = Console()
+
+
+@contextmanager
+def spinner(message: str):
+    """显示旋转等待动画，用法: with spinner("正在思考..."): do_something()"""
+    with console.status(f"[cyan]{message}[/cyan]", spinner="dots"):
+        yield
 
 
 def print_banner():

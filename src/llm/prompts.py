@@ -132,51 +132,45 @@ RETRY_PROMPT = """上次执行失败，请修正命令。
 
 # ---- 动态系统提示构建 ----
 def build_system_prompt(context: dict, rag_docs: str = "") -> str:
-    """
-    构建系统提示，包含环境信息
-
-    优先级：系统环境 > 用户权限 > 已安装工具 > RAG参考
-    """
     parts = ["你是一个Shell命令助手。根据系统环境生成准确命令。\n"]
 
-    # 系统信息（高优先级）
     if "os_info" in context:
         info = context["os_info"]
-        parts.append(f"## 系统信息")
-        parts.append(f"- 发行版: {info['distro']}")
-        parts.append(f"- 内核: {info['kernel']}")
-        parts.append(f"- 架构: {info.get('arch', 'unknown')}")
-        parts.append(f"- 包管理器: {info['pkg_mgr']}")
+        if isinstance(info, dict):
+            parts.append(f"## 系统信息")
+            parts.append(f"- 发行版: {info['distro']}")
+            parts.append(f"- 内核: {info['kernel']}")
+            parts.append(f"- 架构: {info.get('arch', 'unknown')}")
+            parts.append(f"- 包管理器: {info['pkg_mgr']}")
 
-    # 用户信息 + sudo权限
     if "user_info" in context:
         u = context["user_info"]
-        if u["is_root"]:
-            perm = "root用户，拥有全部权限"
-        elif u.get("has_sudo"):
-            perm = "非root用户，有sudo权限（需要时可用sudo）"
-        else:
-            perm = "非root用户，无sudo权限（禁止生成sudo命令）"
-        parts.append(f"\n## 用户信息")
-        parts.append(f"- 当前用户: {u['user']}")
-        parts.append(f"- 权限: {perm}")
+        if isinstance(u, dict):
+            if u["is_root"]:
+                perm = "root用户，拥有全部权限"
+            elif u.get("has_sudo"):
+                perm = "非root用户，有sudo权限（需要时可用sudo）"
+            else:
+                perm = "非root用户，无sudo权限（禁止生成sudo命令）"
+            parts.append(f"\n## 用户信息")
+            parts.append(f"- 当前用户: {u['user']}")
+            parts.append(f"- 权限: {perm}")
 
-    # 已安装工具（关键信息）
     if "installed_tools" in context:
         tools = context["installed_tools"]
-        parts.append(f"\n## 已安装工具（只能使用这些工具或Linux内置命令）")
-        parts.append(f"{', '.join(tools)}")
+        if isinstance(tools, list):
+            parts.append(f"\n## 已安装工具（只能使用这些工具或Linux内置命令）")
+            parts.append(f"{', '.join(tools)}")
 
-    # 当前目录
     if "cwd_files" in context:
         c = context["cwd_files"]
-        parts.append(f"\n## 当前目录")
-        parts.append(f"路径: {c['cwd']}")
-        if c['files']:
-            parts.append(f"文件: {', '.join(c['files'][:15])}" +
-                        (f" ...等{len(c['files'])}个" if len(c['files']) > 15 else ""))
+        if isinstance(c, dict):
+            parts.append(f"\n## 当前目录")
+            parts.append(f"路径: {c['cwd']}")
+            if c['files']:
+                parts.append(f"文件: {', '.join(c['files'][:15])}" +
+                            (f" ...等{len(c['files'])}个" if len(c['files']) > 15 else ""))
 
-    # 其他上下文信息
     if "disk_usage" in context:
         parts.append(f"\n## 磁盘使用\n{context['disk_usage']}")
 
@@ -192,13 +186,11 @@ def build_system_prompt(context: dict, rag_docs: str = "") -> str:
     if "network_info" in context:
         parts.append(f"\n## 网络配置\n{context['network_info']}")
 
-    # 文件内容
     for k, v in context.items():
         if k.startswith("file_content:"):
             path = k.split(":", 1)[1]
             parts.append(f"\n## 文件内容: {path}\n{v}")
 
-    # RAG文档（最低优先级）
     if rag_docs:
         parts.append(f"\n{rag_docs}")
 
@@ -206,26 +198,29 @@ def build_system_prompt(context: dict, rag_docs: str = "") -> str:
 
 
 def build_env_context(context: dict) -> str:
-    """
-    构建精简的环境上下文（用于重试等场景）
-    """
     parts = []
 
     if "os_info" in context:
         info = context["os_info"]
-        parts.append(f"系统: {info['distro']} | 内核: {info['kernel']} | 包管理: {info['pkg_mgr']}")
+        if isinstance(info, dict):
+            parts.append(f"系统: {info['distro']} | 内核: {info['kernel']} | 包管理: {info['pkg_mgr']}")
 
     if "user_info" in context:
         u = context["user_info"]
-        sudo_info = ""
-        if not u["is_root"]:
-            sudo_info = " | sudo: " + ("有" if u.get("has_sudo") else "无")
-        parts.append(f"用户: {u['user']} ({'root' if u['is_root'] else '非root'}{sudo_info})")
+        if isinstance(u, dict):
+            sudo_info = ""
+            if not u["is_root"]:
+                sudo_info = " | sudo: " + ("有" if u.get("has_sudo") else "无")
+            parts.append(f"用户: {u['user']} ({'root' if u['is_root'] else '非root'}{sudo_info})")
 
     if "installed_tools" in context:
-        parts.append(f"已装工具: {', '.join(context['installed_tools'])}")
+        tools = context["installed_tools"]
+        if isinstance(tools, list):
+            parts.append(f"已装工具: {', '.join(tools)}")
 
     if "cwd_files" in context:
-        parts.append(f"当前目录: {context['cwd_files']['cwd']}")
+        c = context["cwd_files"]
+        if isinstance(c, dict):
+            parts.append(f"当前目录: {c['cwd']}")
 
     return "\n".join(parts)

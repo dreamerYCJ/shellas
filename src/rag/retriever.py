@@ -1,9 +1,9 @@
 """RAG检索器 — 两阶段设计 + 工具可用性过滤"""
 import shutil
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 
-# ---- 模块级单例，只加载一次 ----
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+
 _embeddings = None
 _vectorstore = None
 
@@ -11,7 +11,7 @@ _vectorstore = None
 def _get_embeddings():
     global _embeddings
     if _embeddings is None:
-        _embeddings = HuggingFaceBgeEmbeddings(
+        _embeddings = HuggingFaceEmbeddings(
             model_name="./weights/bge-base-zh-v1.5",
             model_kwargs={"device": "cuda"},
             encode_kwargs={"normalize_embeddings": True},
@@ -51,11 +51,8 @@ class ShellRetriever:
                 continue
 
             cmd = doc.metadata["command"]
-
-            # 没装的命令直接跳过
             if not self._is_installed(cmd):
                 continue
-
             if cmd in seen_commands:
                 continue
             seen_commands.add(cmd)
@@ -73,7 +70,6 @@ class ShellRetriever:
         return filtered[:top_k]
 
     def retrieve_by_command(self, command: str, top_k: int = 3) -> list[dict]:
-        """阶段二不变"""
         results = self.vectorstore.similarity_search_with_score(
             f"命令: {command}", k=top_k * 3
         )

@@ -1,6 +1,7 @@
 """意图解析节点"""
 from ...llm.client import LLMClient
 from ...llm.prompts import INTENT_PROMPT
+from ...cli.display import spinner, print_intent
 from ..state import AgentState
 
 VALID_INTENTS = [
@@ -10,6 +11,7 @@ VALID_INTENTS = [
 ]
 
 _llm = None
+
 
 def _get_llm():
     global _llm
@@ -21,7 +23,9 @@ def _get_llm():
 def parse_intent(state: AgentState) -> AgentState:
     llm = _get_llm()
     prompt = INTENT_PROMPT.format(user_input=state["user_input"])
-    raw = llm.chat("你是一个分类器。", prompt).strip().lower()
+
+    with spinner("正在分析意图..."):
+        raw = llm.chat("你是一个分类器。", prompt).strip().lower()
 
     # 容错：如果返回的不在列表里，用关键词匹配兜底
     intent = "general"
@@ -30,4 +34,5 @@ def parse_intent(state: AgentState) -> AgentState:
             intent = valid
             break
 
+    print_intent(intent)
     return {**state, "intent": intent}

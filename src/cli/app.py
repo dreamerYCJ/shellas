@@ -18,6 +18,8 @@ def create_initial_state(user_input: str) -> AgentState:
         required_contexts=[],
         context={},
         retrieved_docs="",
+        target_command=None,        # FIX: 原代码缺少这两个字段
+        query_analysis=None,        # FIX: 导致 TypedDict 不完整
         execution_plan=[],
         current_step=0,
         execution_results=[],
@@ -61,7 +63,6 @@ def main():
         state = create_initial_state(user_input)
 
         try:
-            # 运行LangGraph
             final_state = app.invoke(state)
             response = final_state.get("final_response", "")
             if response:

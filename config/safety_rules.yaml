@@ -1,32 +1,65 @@
+# ShellAgent 安全规则配置
+# 优先级: high → medium → low（先匹配高危）
+
 risk_levels:
   high:
     action: "block"
     patterns:
-      - 'rm\s+-rf\s+/[^.]'
+      # 删除根目录（rm -rf / 或 rm -rf /*）
+      - 'rm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+/\s*$'
+      - 'rm\s+-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*\s+/\s*$'
+      - 'rm\s+-rf\s+/\*'
+      - 'rm\s+-rf\s+/[^.\s]'
+      # 格式化磁盘
       - 'mkfs\.'
+      # dd 覆写磁盘
       - 'dd\s+if=.*of=/dev/'
+      # Fork bomb
       - ':\(\)\{.*\|.*&'
-      - 'chmod\s+-R\s+777\s+/'
+      # 根目录递归改权限
+      - 'chmod\s+(-R\s+)?777\s+/\s*$'
+      - 'chmod\s+(-R\s+)?777\s+/[^.]'
+      # 直接写磁盘设备
       - '>\s*/dev/sd'
+      # 远程脚本直接执行
       - 'wget.*\|\s*sh'
       - 'curl.*\|\s*bash'
+      - 'curl.*\|\s*sh'
+
+  low:
+    action: "auto_execute"
+    patterns:
+      - '^(ls|cat|head|tail|grep|find|df|du|ps|top|who|date|uname|echo|pwd)\b'
+      - '^(wc|sort|uniq|awk|file|stat|which|whereis|hostname)\b'
+      - '^(ip\s+a|ss|ping|traceroute|dig|nslookup|free|uptime|env)\b'
+      - '^(lscpu|lsblk|lspci|lsusb|id|groups|whoami|w)\b'
+      - '^(git\s+(status|log|branch|diff|show))\b'
+      - '^(docker\s+(ps|images|logs))\b'
+      - '^nvidia-smi\b'
+      - '^(python3?|pip|node|npm)\s+--version\b'
+      - '^systemctl\s+(is-active|is-enabled|status|show|list-units|list-timers)\b'
+      - '^journalctl\s+'
+      - '^(dpkg\s+-l|rpm\s+-q|apt\s+list)\b'
+
   medium:
     action: "confirm"
     patterns:
       - 'rm\s+'
       - 'sudo\s+'
       - 'kill\s+'
-      - 'systemctl\s+(stop|restart|disable)'
+      - 'systemctl\s+(stop|restart|disable|enable|start)'
       - 'iptables'
       - 'crontab'
       - 'chmod|chown'
       - 'mv\s+.*\s+/'
-  low:
-    action: "auto_execute"
-    patterns:
-      - '^(ls|cat|head|tail|grep|find|df|du|ps|top|who|date|uname|echo|pwd)'
-      - '^(wc|sort|uniq|awk|file|stat|which|whereis|hostname)'
-      - '^(ip\s+a|ss|ping|traceroute|dig|nslookup|free|uptime|env)'
+      - 'cp\s+'
+      - 'mkdir\s+'
+      - 'wget\s+|curl\s+-[a-zA-Z]*o'
+      - 'apt\s+|yum\s+|dnf\s+|pacman\s+'
+      - 'pip\s+install'
+      - 'docker\s+(run|stop|rm|rmi|build|exec)'
+      - 'tar\s+-[a-zA-Z]*[cxz]'
+      - 'unzip\s+'
 
 file_access:
   blocked_paths:
@@ -34,13 +67,8 @@ file_access:
     - "/etc/gshadow"
     - "/.ssh/id_rsa"
     - "/.ssh/id_ed25519"
+    - "/.ssh/authorized_keys"
     - "/.env"
     - "/credentials"
-
-error_strategy:
-  syntax_error:    { action: "auto_retry",  max_retries: 2 }
-  not_found:       { action: "auto_retry",  max_retries: 1 }
-  permission_denied: { action: "suggest_fix", max_retries: 0 }
-  resource_error:  { action: "suggest_fix", max_retries: 0 }
-  timeout:         { action: "auto_retry",  max_retries: 1 }
-  unknown:         { action: "ask_user",    max_retries: 0 }
+    - "/.aws/credentials"
+    - "/.kube/config"

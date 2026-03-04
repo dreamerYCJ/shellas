@@ -69,7 +69,7 @@ def human_confirm(state: AgentState) -> AgentState:
 
 
 # ---- 构建Graph ----
-def build_workflow() -> StateGraph:
+def build_workflow():
     wf = StateGraph(AgentState)
 
     # 节点
@@ -78,7 +78,7 @@ def build_workflow() -> StateGraph:
     wf.add_node("gather_context",  gather_context)
     wf.add_node("retrieve_docs",   retrieve_docs)
     wf.add_node("plan_execution",  plan_execution)
-    wf.add_node("safety_check",    lambda s: s)  # risk_level已在plan_execution里设置
+    wf.add_node("safety_check",    lambda s: s)
     wf.add_node("human_confirm",   human_confirm)
     wf.add_node("execute_command", execute_command)
     wf.add_node("parse_output",    parse_output)

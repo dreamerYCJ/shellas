@@ -1,6 +1,7 @@
 """命令执行节点"""
 import subprocess
 from ..state import AgentState
+from ...cli.display import spinner
 
 
 def execute_command(state: AgentState) -> AgentState:
@@ -16,13 +17,14 @@ def execute_command(state: AgentState) -> AgentState:
             command = command.replace(placeholder, prev.get("stdout", "").strip())
 
     try:
-        proc = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        with spinner(f"正在执行: {command[:60]}..."):
+            proc = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
         result = {
             "step_id": step.get("step_id", step_idx + 1),
             "command": command,

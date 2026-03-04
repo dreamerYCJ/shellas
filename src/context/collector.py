@@ -29,14 +29,15 @@ class ContextCollector:
             if ctx.startswith("file_content:"):
                 result[ctx] = self._safe_read_file(ctx.split(":", 1)[1])
             elif ctx in self.COLLECTORS:
-                result[ctx] = getattr(self, self.COLLECTORS[ctx])()
+                try:
+                    result[ctx] = getattr(self, self.COLLECTORS[ctx])()
+                except Exception as e:
+                    result[ctx] = f"[采集失败] {e}"
 
-        # installed_tools特殊处理：prompt里只放常用工具摘要
-        if "installed_tools" in result:
+        # installed_tools特殊处理：prompt里只放运维相关工具摘要
+        if "installed_tools" in result and isinstance(result["installed_tools"], list):
             full_list = result["installed_tools"]
-            # 保存完整列表供RAG过滤用
             result["_all_tools"] = set(full_list)
-            # prompt里只展示运维相关的工具（从完整列表里过滤）
             RELEVANT_TOOLS = {
                 "nvidia-smi", "rocm-smi", "docker", "podman", "kubectl",
                 "git", "python3", "node", "java", "go", "gcc", "make",
@@ -100,15 +101,12 @@ class ContextCollector:
         r = subprocess.run(["ip", "a"], capture_output=True, text=True, timeout=5)
         if r.returncode == 0:
             return r.stdout
-        # fallback
         r2 = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=5)
         return r2.stdout if r2.returncode == 0 else "采集失败"
 
     def _collect_tools(self):
         if self._tools_cache:
             return self._tools_cache
-
-        # 动态扫描PATH下所有可执行文件
         found = set()
         path_dirs = os.environ.get("PATH", "").split(os.pathsep)
         for d in path_dirs:
@@ -119,18 +117,18 @@ class ContextCollector:
                         found.add(f)
             except (PermissionError, FileNotFoundError):
                 continue
-
         self._tools_cache = sorted(found)
         return self._tools_cache
-    
+
     def has_tool(self, name: str) -> bool:
         """检查某个工具是否已安装"""
         tools = self._collect_tools()
         return name in tools
-    
+
     def _collect_services(self):
         r = subprocess.run(
-            ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager", "-q"],
+            ["systemctl", "list-units", "--type=service", "--state=running",
+             "--no-pager", "-q"],
             capture_output=True, text=True, timeout=5,
         )
         if r.returncode == 0:
@@ -148,9 +146,17 @@ class ContextCollector:
         except Exception:
             pass
 
+        # FIX: os.geteuid() 仅在 Unix 上可用
+        is_root = False
+        try:
+            is_root = os.geteuid() == 0
+        except AttributeError:
+            # Windows 上没有 geteuid
+            is_root = False
+
         return {
-            "user": os.environ.get("USER", "unknown"),
-            "is_root": os.geteuid() == 0,
+            "user": os.environ.get("USER", os.environ.get("USERNAME", "unknown")),
+            "is_root": is_root,
             "has_sudo": has_sudo,
             "home": os.path.expanduser("~"),
             "shell": os.environ.get("SHELL", "unknown"),

@@ -1,17 +1,22 @@
+# ---- 推理模型配置 ----
 model:
+  # 模型路径（本地） 或 HuggingFace 模型名
   name: "./weights/Qwen/Qwen2.5-Coder-14B-Instruct-AWQ"
+  # vLLM 提供的 OpenAI 兼容 API 地址
   base_url: "http://localhost:8000/v1"
   api_key: "not-needed"
   max_tokens: 1024
   temperature: 0.1
 
+# ---- vLLM 启动参数 ----
 vllm:
   host: "0.0.0.0"
   port: 8000
-  max_model_len: 4096
-  gpu_memory_utilization: 0.85
+  max_model_len: 8192
+  gpu_memory_utilization: 0.6
   quantization: "awq"
 
+# ---- Embedding 模型 ----
 embedding:
-  model_name: "BAAI/bge-base-zh-v1.5"
-  device: "cuda"
+  model_name: "./weights/bge-base-zh-v1.5"
+  device: "cuda"    # 无GPU改为 "cpu"

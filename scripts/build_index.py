@@ -5,7 +5,6 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_core.documents import Document
 
-# 命令→中文关键词映射，覆盖高频运维场景
 CMD_ZH_KEYWORDS = {
     "ss":        "端口 网络连接 监听 进程 PID 网络诊断 socket",
     "netstat":   "端口 网络连接 监听 进程 PID 网络状态",
@@ -89,7 +88,6 @@ def build_chunks(tldr_data: list[dict]) -> list[Document]:
         zh_keywords = CMD_ZH_KEYWORDS.get(cmd_name, "")
 
         for ex in cmd_data["examples"]:
-            # 中英双语chunk：中文关键词 + 英文原文
             text = (
                 f"命令: {cmd_name}\n"
                 f"中文关键词: {zh_keywords}\n"
@@ -132,7 +130,6 @@ if __name__ == "__main__":
     chunks = build_chunks(data)
     print(f"📦 共 {len(chunks)} 个检索单元")
 
-    # 删除旧索引
     import shutil, os
     if os.path.exists("./data/chroma_db"):
         shutil.rmtree("./data/chroma_db")

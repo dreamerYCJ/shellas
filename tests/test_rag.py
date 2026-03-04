@@ -1,4 +1,4 @@
-"""RAG检索测试"""
+"""RAG检索测试（需要 chroma_db 索引和 Embedding 模型）"""
 import pytest
 from src.rag.retriever import ShellRetriever
 from src.rag.query_rewriter import rewrite_query
@@ -31,4 +31,4 @@ def test_retrieve_platform_filter(retriever):
 def test_format_for_prompt(retriever):
     results = retriever.retrieve("compress files", top_k=3)
     formatted = retriever.format_for_prompt(results)
-    assert "相关命令参考" in formatted or formatted == ""
+    assert "候选命令" in formatted or formatted == ""

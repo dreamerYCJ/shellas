@@ -1,3 +1,9 @@
-weights
-data
-shellagent-full-doc.md
+weights/
+data/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.env

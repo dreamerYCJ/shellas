@@ -19,16 +19,22 @@ class LLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> str:
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input},
-            ],
-            temperature=temperature or self.default_temperature,
-            max_tokens=max_tokens or self.default_max_tokens,
-        )
-        return resp.choices[0].message.content
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_input},
+                ],
+                temperature=temperature or self.default_temperature,
+                max_tokens=max_tokens or self.default_max_tokens,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            raise ConnectionError(
+                f"LLM调用失败: {e}\n"
+                f"请确认 vLLM 服务是否已启动（默认 http://localhost:8000）"
+            ) from e
 
     def chat_json(self, system_prompt: str, user_input: str) -> str:
         """带JSON格式约束的调用"""
